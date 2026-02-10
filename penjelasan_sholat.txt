@@ -1,0 +1,307 @@
+# Penjelasan Arsitektur MVVM pada Fitur Jadwal Sholat
+
+Dokumen ini menjelaskan implementasi arsitektur Model-View-ViewModel (MVVM) pada fitur jadwal sholat dalam aplikasi Muslim App.
+
+## Apa itu MVVM?
+
+MVVM adalah sebuah pola arsitektur perangkat lunak yang memfasilitasi pemisahan antara pengembangan antarmuka pengguna grafis (UI) dengan logika bisnis atau logika backend (model data). Tujuannya adalah untuk membuat kode lebih terstruktur, mudah dikelola, dan mudah diuji.
+
+MVVM terdiri dari tiga komponen utama:
+
+1.  **Model**: Merepresentasikan data dan logika bisnis aplikasi. Ini adalah "otak" dari aplikasi yang bertanggung jawab atas aturan bisnis, validasi data, dan pengelolaan data (misalnya dari API atau database lokal). Model tidak memiliki pengetahuan langsung tentang View.
+
+2.  **View**: Bertanggung jawab untuk menampilkan data kepada pengguna dan menangkap interaksi pengguna (seperti klik tombol atau input teks). Di Flutter, ini adalah Widget. View seharusnya "bodoh" (dumb), artinya ia hanya tahu cara menampilkan data yang diberikan oleh ViewModel dan meneruskan aksi pengguna ke ViewModel.
+
+3.  **ViewModel**: Bertindak sebagai perantara antara Model dan View. ViewModel mengambil data dari Model, mengolahnya sesuai kebutuhan tampilan, dan menyediakannya untuk ditampilkan oleh View. Ia juga menangani logika tampilan dan aksi pengguna yang diterima dari View. ViewModel memungkinkan state (data) untuk bertahan saat terjadi perubahan konfigurasi (seperti rotasi layar).
+
+---
+
+## Implementasi pada Fitur Jadwal Sholat
+
+Berikut adalah rincian dari setiap file yang terlibat dalam fitur jadwal sholat, sesuai dengan perannya dalam arsitektur MVVM.
+
+### 1. Model (`lib/model/shalat_schedule_response.dart`)
+
+File ini mendefinisikan struktur data (POJO - Plain Old Java Object / PODO - Plain Old Dart Object) untuk respons yang diterima dari API jadwal sholat.
+
+```dart
+// lib/model/shalat_schedule_response.dart
+
+// Merepresentasikan seluruh respons JSON dari API.
+class ShalatScheduleResponse {
+  final String? status; // Status dari respons API (misal: "OK").
+  final Data? data;     // Objek yang berisi data utama jadwal sholat.
+
+  ShalatScheduleResponse({this.status, this.data});
+
+  // Factory constructor untuk membuat instance ShalatScheduleResponse dari JSON.
+  factory ShalatScheduleResponse.fromJson(Map<String, dynamic> json) {
+    return ShalatScheduleResponse(
+      status: json['status'],
+      // Jika data tidak null, buat objek Data dari JSON, jika null, biarkan null.
+      data: json['data'] != null ? Data.fromJson(json['data']) : null,
+    );
+  }
+}
+
+// Merepresentasikan objek "data" dalam JSON.
+class Data {
+  final String? id;       // ID kota.
+  final String? lokasi;   // Nama lokasi/kota.
+  final String? daerah;   // Daerah/provinsi.
+  final Jadwal? jadwal; // Objek yang berisi detail jadwal sholat.
+
+  Data({this.id, this.lokasi, this.daerah, this.jadwal});
+
+  // Factory constructor untuk membuat instance Data dari JSON.
+  factory Data.fromJson(Map<String, dynamic> json) {
+    return Data(
+      id: json['id'],
+      lokasi: json['lokasi'],
+      daerah: json['daerah'],
+      // Jika jadwal tidak null, buat objek Jadwal dari JSON.
+      jadwal: json['jadwal'] != null ? Jadwal.fromJson(json['jadwal']) : null,
+    );
+  }
+}
+
+// Merepresentasikan objek "jadwal" yang berisi waktu-waktu sholat.
+class Jadwal {
+  final String? tanggal; // Tanggal jadwal.
+  final String? imsak;   // Waktu imsak.
+  final String? subuh;   // Waktu subuh.
+  final String? terbit;  // Waktu terbit matahari.
+  final String? dhuha;   // Waktu dhuha.
+  final String? dzuhur;  // Waktu dzuhur.
+  final String? ashar;   // Waktu ashar.
+  final String? maghrib; // Waktu maghrib.
+  final String? isya;    // Waktu isya.
+  final String? date;    // Tanggal dalam format lain.
+
+  Jadwal({
+    this.tanggal,
+    this.imsak,
+    this.subuh,
+    this.terbit,
+    this.dhuha,
+    this.dzuhur,
+    this.ashar,
+    this.maghrib,
+    this.isya,
+    this.date,
+  });
+
+  // Factory constructor untuk membuat instance Jadwal dari JSON.
+  factory Jadwal.fromJson(Map<String, dynamic> json) {
+    return Jadwal(
+      tanggal: json['tanggal'],
+      imsak: json['imsak'],
+      subuh: json['subuh'],
+      terbit: json['terbit'],
+      dhuha: json['dhuha'],
+      dzuhur: json['dzuhur'],
+      ashar: json['ashar'],
+      maghrib: json['maghrib'],
+      isya: json['isya'],
+      date: json['date'],
+    );
+  }
+}
+```
+
+**Penjelasan:**
+*   Setiap `class` merepresentasikan satu bagian dari struktur JSON yang diterima dari API.
+*   `factory ... .fromJson` adalah metode standar di Dart untuk mengubah data `Map<String, dynamic>` (hasil decode JSON) menjadi sebuah objek Dart yang terstruktur. Ini membuat data menjadi *type-safe* dan mudah digunakan di seluruh aplikasi.
+
+---
+
+### 2. Repository (`lib/repository/shalat_repository.dart`)
+
+Repository adalah lapisan abstraksi data. Tugasnya adalah menyediakan data ke ViewModel tanpa ViewModel perlu tahu dari mana data itu berasal (apakah dari API, database lokal, atau cache).
+
+```dart
+// lib/repository/shalat_repository.dart
+
+import 'dart:convert'; // Untuk mengubah string JSON menjadi Map.
+import 'package:http/http.dart' as http; // Untuk melakukan request HTTP.
+import 'package:muslim_app/model/shalat_schedule_response.dart'; // Mengimpor model data.
+
+class ShalatRepository {
+  // Fungsi untuk mengambil jadwal sholat dari API.
+  // Menerima parameter city dan date.
+  Future<ShalatScheduleResponse> getShalatSchedule(
+      String city, String date) async {
+    // Membentuk URL API dengan parameter yang dinamis.
+    final url =
+        'https://api.myquran.com/v2/sholat/jadwal/$city/$date';
+    
+    // Melakukan request GET ke URL yang telah dibentuk.
+    final response = await http.get(Uri.parse(url));
+
+    // Memeriksa status code dari respons. 200 berarti sukses.
+    if (response.statusCode == 200) {
+      // Jika sukses, decode body respons (yang berupa string JSON) menjadi Map.
+      final json = jsonDecode(response.body);
+      // Mengubah Map JSON menjadi objek ShalatScheduleResponse menggunakan factory constructor.
+      return ShalatScheduleResponse.fromJson(json);
+    } else {
+      // Jika gagal (status code bukan 200), lemparkan sebuah Exception.
+      throw Exception('Failed to load shalat schedule');
+    }
+  }
+}
+```
+
+**Penjelasan:**
+*   `getShalatSchedule`: Satu-satunya metode publik di kelas ini. Metode ini yang akan dipanggil oleh ViewModel.
+*   `http.get`: Melakukan panggilan jaringan (network call) ke API. Ini adalah operasi *asynchronous*, sehingga ditandai dengan `await`.
+*   `jsonDecode`: Mengubah respons dari API yang berbentuk teks JSON menjadi struktur data `Map` di Dart.
+*   `ShalatScheduleResponse.fromJson(json)`: Menggunakan Model yang telah kita buat untuk mengubah `Map` menjadi objek `ShalatScheduleResponse` yang kuat (strongly-typed).
+*   `throw Exception`: Jika API gagal, repository akan memberi tahu pemanggilnya (ViewModel) dengan melemparkan sebuah error.
+
+---
+
+### 3. ViewModel (`lib/viewmodel/shalat_view_model.dart`)
+
+ViewModel menghubungkan `ShalatRepository` dengan `ShalatPage`. Ia memegang *state* (kondisi) dari UI dan logika untuk mengambil data.
+
+```dart
+// lib/viewmodel/shalat_view_model.dart
+
+import 'package:flutter/material.dart'; // Mengimpor fondasi Flutter.
+import 'package:muslim_app/model/shalat_schedule_response.dart'; // Mengimpor model.
+import 'package:muslim_app/repository/shalat_repository.dart'; // Mengimpor repository.
+
+// Enum untuk merepresentasikan state dari proses pengambilan data.
+enum Status { none, running, stopped, error }
+
+// ShalatViewModel menggunakan ChangeNotifier untuk memberi tahu listener (View) jika ada perubahan.
+class ShalatViewModel extends ChangeNotifier {
+  // Instance dari repository untuk mengambil data.
+  final ShalatRepository _repository = ShalatRepository();
+
+  // State untuk melacak status proses pengambilan data.
+  Status _status = Status.none;
+  Status get status => _status;
+
+  // Properti untuk menyimpan data jadwal sholat yang berhasil didapat.
+  ShalatScheduleResponse? _shalatSchedule;
+  ShalatScheduleResponse? get shalatSchedule => _shalatSchedule;
+
+  // Fungsi utama yang dipanggil oleh View untuk memulai pengambilan data.
+  Future<void> getShalatSchedule(String city, String date) async {
+    // 1. Ubah status menjadi 'running' untuk memberi tahu UI agar menampilkan loading indicator.
+    _status = Status.running;
+    notifyListeners(); // Beri tahu semua listener (View) bahwa ada perubahan state.
+
+    try {
+      // 2. Panggil repository untuk mengambil data.
+      final response = await _repository.getShalatSchedule(city, date);
+      
+      // 3. Jika berhasil, simpan data dan ubah status menjadi 'stopped'.
+      _shalatSchedule = response;
+      _status = Status.stopped;
+    } catch (e) {
+      // 4. Jika terjadi error (misal dari throw Exception di repository), ubah status menjadi 'error'.
+      _status = Status.error;
+    } finally {
+      // 5. Apapun hasilnya (sukses atau gagal), beri tahu listener sekali lagi.
+      notifyListeners();
+    }
+  }
+}
+```
+
+**Penjelasan:**
+*   `extends ChangeNotifier`: Ini adalah kunci dari *state management* menggunakan provider. `ChangeNotifier` memungkinkan kelas ini untuk "memberi tahu" widget lain ketika datanya berubah.
+*   `_status`: Variabel privat untuk menyimpan state saat ini (apakah sedang loading, sukses, atau error).
+*   `get status`: *Getter* publik agar View bisa membaca state `_status` tanpa bisa mengubahnya secara langsung.
+*   `_shalatSchedule`: Variabel privat untuk menyimpan data yang berhasil diambil.
+*   `getShalatSchedule()`:
+    *   Mengubah `_status` menjadi `running` dan memanggil `notifyListeners()`. View akan "mendengar" ini dan bisa menampilkan `CircularProgressIndicator`.
+    *   Menggunakan `try-catch` untuk menangani kemungkinan error saat memanggil repository.
+    *   Jika sukses, data disimpan di `_shalatSchedule` dan status diubah menjadi `stopped`.
+    *   Jika gagal, status diubah menjadi `error`.
+    *   `notifyListeners()` dipanggil lagi di akhir untuk memberi tahu View agar memperbarui dirinya dengan data baru atau pesan error.
+
+---
+
+### 4. View (`lib/view/shalat_page.dart`)
+
+View adalah representasi visual dari data. Di Flutter, ini adalah sebuah `Widget`. `ShalatPage` akan "mendengarkan" perubahan pada `ShalatViewModel` dan membangun ulang UI-nya sesuai dengan state yang ada.
+
+```dart
+// lib/view/shalat_page.dart (bagian yang relevan)
+
+// ... (imports)
+
+class ShalatPage extends StatefulWidget {
+  // ... (constructor)
+}
+
+class _ShalatPageState extends State<ShalatPage> {
+  // ... (deklarasi variabel)
+
+  @override
+  void initState() {
+    super.initState();
+    // Meminta ViewModel untuk mengambil data saat halaman pertama kali dibuka.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ShalatViewModel>().getShalatSchedule('1301', '2024-05-20');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Menggunakan Consumer untuk mendengarkan perubahan pada ShalatViewModel.
+    return Consumer<ShalatViewModel>(
+      builder: (context, viewModel, child) {
+        // Membangun UI berdasarkan status dari ViewModel.
+        switch (viewModel.status) {
+          case Status.running:
+            // Jika status 'running', tampilkan loading indicator.
+            return const Center(child: CircularProgressIndicator());
+          case Status.stopped:
+            // Jika status 'stopped' (sukses), tampilkan data.
+            final jadwal = viewModel.shalatSchedule?.data?.jadwal;
+            final lokasi = viewModel.shalatSchedule?.data?.lokasi;
+            return _buildSuccessUI(jadwal, lokasi); // Panggil fungsi untuk membangun UI sukses.
+          case Status.error:
+            // Jika status 'error', tampilkan pesan error.
+            return const Center(child: Text('Failed to load data.'));
+          case Status.none:
+            // Jika status 'none' (awal), tampilkan container kosong.
+            return const SizedBox.shrink();
+        }
+      },
+    );
+  }
+
+  // Fungsi helper untuk membangun UI saat data berhasil didapat.
+  Widget _buildSuccessUI(Jadwal? jadwal, String? lokasi) {
+    return SingleChildScrollView(
+      child: Column(
+        // ... (UI untuk menampilkan lokasi dan daftar waktu sholat)
+        // Contoh:
+        // Text(lokasi ?? 'Unknown Location'),
+        // _buildShalatRow('Subuh', jadwal?.subuh ?? '-'),
+        // _buildShalatRow('Dzuhur', jadwal?.dzuhur ?? '-'),
+        // ... (dan seterusnya)
+      ),
+    );
+  }
+
+  // ... (fungsi helper lainnya seperti _buildShalatRow)
+}
+```
+
+**Penjelasan:**
+*   `initState` & `context.read<ShalatViewModel>()`: Saat widget pertama kali dibuat, kita memanggil `getShalatSchedule` pada ViewModel untuk memulai proses pengambilan data. `context.read` digunakan untuk mendapatkan instance ViewModel dari widget tree (yang disediakan oleh `ChangeNotifierProvider` di `main.dart`).
+*   `Consumer<ShalatViewModel>`: Ini adalah widget dari package `provider`. Ia akan secara otomatis "membangun ulang" `builder`-nya setiap kali `notifyListeners()` dipanggil di dalam `ShalatViewModel`.
+*   `switch (viewModel.status)`: Ini adalah inti dari UI yang reaktif. Kita memeriksa `status` dari ViewModel dan menampilkan widget yang sesuai:
+    *   `Status.running`: Tampilkan loading spinner.
+    *   `Status.stopped`: Ambil data dari `viewModel.shalatSchedule` dan tampilkan di UI.
+    *   `Status.error`: Tampilkan pesan error.
+*   `_buildSuccessUI`: Memisahkan logika pembangunan UI sukses ke dalam fungsi tersendiri membuat kode `build` utama lebih bersih dan mudah dibaca.
+
+Dengan cara ini, setiap komponen memiliki tanggung jawab yang jelas, membuat kode lebih mudah dipahami, di-debug, dan dikembangkan di masa depan.
