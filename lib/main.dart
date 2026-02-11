@@ -8,11 +8,15 @@ import 'repository/shalat_repository.dart';
 import 'viewmodel/doa_view_model.dart';
 import 'viewmodel/quran_view_model.dart';
 import 'viewmodel/shalat_view_model.dart';
+import 'viewmodel/qibla_view_model.dart';
 import 'view/home_page.dart';
 import 'view/shalat_page.dart';
 import 'view/quran_page.dart';
 import 'view/doa_page.dart';
 import 'view/splash_screen.dart';
+import 'view/about_page.dart';
+import 'view/qibla_page.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -34,6 +38,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (c) => DoaViewModel(c.read<DoaRepository>())),
         ChangeNotifierProvider(create: (c) => QuranViewModel(c.read<QuranRepository>())),
         ChangeNotifierProvider(create: (c) => ShalatViewModel(c.read<ShalatRepository>())),
+        ChangeNotifierProvider(create: (_) => QiblaViewModel()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -46,7 +51,8 @@ class MyApp extends StatelessWidget {
           '/shalat': (context) => const ShalatPage(),
           '/quran': (context) => const QuranPage(),
           '/doa': (context) => const DoaPage(),
-          // '/about': (context) => const AboutPage(),
+          '/about': (context) => const AboutPage(),
+          '/qibla': (context) => const QiblaPage(),
         },
       ),
     );
