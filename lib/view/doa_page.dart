@@ -16,10 +16,9 @@ class _DoaPageState extends State<DoaPage> {
   void initState() {
     super.initState();
 
-    // Ambil data doa saat halaman pertama kali dibuka
-    Future.microtask(
-      () => context.read<DoaViewModel>().fetchDaftarDoa(),
-    );
+    Future.microtask(() {
+      context.read<DoaViewModel>().fetchDaftarDoa();
+    });
   }
 
   @override
@@ -27,56 +26,124 @@ class _DoaPageState extends State<DoaPage> {
     final vm = context.watch<DoaViewModel>();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAF9),
       appBar: AppBar(
         title: const Text("Doa Harian"),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF0F766E),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
-
       body: _buildBody(vm),
     );
   }
 
-  // Mengatur tampilan berdasarkan kondisi data
   Widget _buildBody(DoaViewModel vm) {
-    // 1. Loading
     if (vm.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Memuat daftar doa...',
+              style: TextStyle(color: Color(0xFF102A26), fontSize: 16),
+            ),
+          ],
+        ),
+      );
     }
 
-    // 2. Error
     if (vm.error != null) {
-      return Center(child: Text(vm.error!));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade400, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                vm.error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF102A26).withOpacity(0.8),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
-    // 3. Data kosong
     if (vm.daftarDoa.isEmpty) {
-      return const Center(child: Text("Data doa tidak tersedia"));
+      return Center(
+        child: Text(
+          "Data doa tidak tersedia",
+          style: TextStyle(color: Color(0xFF102A26).withOpacity(0.7)),
+        ),
+      );
     }
 
-    // 4. Tampilkan list doa
     return ListView.separated(
+      padding: const EdgeInsets.all(16),
       itemCount: vm.daftarDoa.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final Doa doa = vm.daftarDoa[index];
 
-        return ListTile(
-          title: Text(
-            doa.doa,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+        return Card(
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        doa.doa,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          color: Color(0xFF102A26),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        doa.latin,
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F766E).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.favorite,
+                    color: Color(0xFF0F766E),
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
           ),
-          trailing: const Icon(Icons.chevron_right),
-
-          // Navigasi ke halaman detail doa
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DoaDetailPage(doa: doa),
-              ),
-            );
-          },
         );
       },
     );

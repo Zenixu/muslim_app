@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-// ViewModel untuk halaman daftar surat
 import '../viewmodel/quran_view_model.dart';
-
-// Repository & ViewModel detail (untuk navigasi ke detail)
 import '../repository/quran_repository.dart';
 import '../viewmodel/quran_detail_view_model.dart';
-
-// Halaman detail surat
 import 'quran_detail_page.dart';
+import 'quran_juz_page.dart';
 
 class QuranPage extends StatefulWidget {
   const QuranPage({super.key});
@@ -18,126 +13,194 @@ class QuranPage extends StatefulWidget {
   State<QuranPage> createState() => _QuranPageState();
 }
 
-class _QuranPageState extends State<QuranPage> {
+class _QuranPageState extends State<QuranPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
-  // Dipanggil SATU KALI saat halaman pertama kali dibuat
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
 
-    // Future.microtask dipakai agar context aman digunakan
-    // dan fetch data langsung saat halaman tampil
     Future.microtask(() {
       context.read<QuranViewModel>().fetchDaftarSurat();
     });
   }
 
   @override
-  Widget build(BuildContext context) {
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
-    // watch() → UI otomatis rebuild jika notifyListeners() dipanggil
+  @override
+  Widget build(BuildContext context) {
     final vm = context.watch<QuranViewModel>();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAF9),
       appBar: AppBar(
         title: const Text("Al-Qur'an"),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF0F766E),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          indicator: const UnderlineTabIndicator(
+            borderSide: BorderSide(color: Colors.white, width: 3),
+            insets: EdgeInsets.symmetric(horizontal: 16),
+          ),
+          tabs: const [
+            Tab(text: 'Semua Surat'),
+            Tab(text: 'Menurut Juz'),
+          ],
+        ),
       ),
-
-      body: _buildBody(vm),
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildSurahList(vm), const QuranJuzPage()],
+      ),
     );
   }
 
-  /// =============================
-  /// BAGIAN BODY UTAMA
-  /// =============================
-  Widget _buildBody(QuranViewModel vm) {
-
-    // 1️⃣ Saat loading
+  Widget _buildSurahList(QuranViewModel vm) {
     if (vm.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    // 2️⃣ Jika error
-    if (vm.error != null) {
       return Center(
-        child: Text(
-          'Terjadi kesalahan:\n${vm.error}',
-          textAlign: TextAlign.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Memuat daftar surat...',
+              style: TextStyle(color: Color(0xFF102A26), fontSize: 16),
+            ),
+          ],
         ),
       );
     }
 
-    // 3️⃣ Jika data kosong
-    if (vm.daftarSurat.isEmpty) {
-      return const Center(
-        child: Text('Data surat tidak ditemukan'),
+    if (vm.error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade400, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Terjadi kesalahan:\n${vm.error}',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF102A26).withOpacity(0.8),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
-    // 4️⃣ Jika data ada → tampilkan list surat
+    if (vm.daftarSurat.isEmpty) {
+      return Center(
+        child: Text(
+          'Data surat tidak ditemukan',
+          style: TextStyle(color: Color(0xFF102A26).withOpacity(0.7)),
+        ),
+      );
+    }
+
     return ListView.separated(
+      padding: const EdgeInsets.all(16),
       itemCount: vm.daftarSurat.length,
-
-      // Garis pemisah antar item
       separatorBuilder: (_, __) => const Divider(height: 1),
-
       itemBuilder: (context, index) {
         final surat = vm.daftarSurat[index];
 
-        return ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-
-          // Nomor surat
-          leading: CircleAvatar(
-            backgroundColor: Colors.green.shade100,
-            child: Text(
-              surat.nomor.toString(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-
-          // Nama Latin
-          title: Text(
-            surat.namaLatin,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-
-          // Arti + jumlah ayat
-          subtitle: Text(
-            '${surat.arti} • ${surat.jumlahAyat} Ayat',
-          ),
-
-          // Nama Arab
-          trailing: Text(
-            surat.nama,
-            style: const TextStyle(
-              fontSize: 18,
-              fontFamily: 'Arabic',
-            ),
-          ),
-
-          // ⭐⭐⭐ INI KUNCI UTAMA KENAPA SEKARANG BISA DIKLIK ⭐⭐⭐
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChangeNotifierProvider(
-                  // ViewModel khusus untuk halaman detail
-                  create: (c) =>
-                      QuranDetailViewModel(c.read<QuranRepository>()),
-
-                  // Kirim nomor surat ke halaman detail
-                  child: QuranDetailPage(
-                    nomor: surat.nomor,
+        return Card(
+          elevation: 0,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChangeNotifierProvider(
+                    create: (c) =>
+                        QuranDetailViewModel(c.read<QuranRepository>()),
+                    child: QuranDetailPage(nomor: surat.nomor),
                   ),
                 ),
+              );
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F766E).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      surat.nomor.toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          surat.namaLatin,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            color: Color(0xFF102A26),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${surat.arti} • ${surat.jumlahAyat} Ayat',
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    surat.nama,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'Arabic',
+                      color: Color(0xFF102A26),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );

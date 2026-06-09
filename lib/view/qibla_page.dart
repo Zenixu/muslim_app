@@ -11,44 +11,74 @@ class QiblaPage extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => QiblaViewModel()..initQibla(),
       child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAF9),
         appBar: AppBar(
           title: const Text("Arah Kiblat"),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xFF0F766E),
+          foregroundColor: Colors.white,
+          elevation: 0,
           centerTitle: true,
         ),
         body: Consumer<QiblaViewModel>(
           builder: (context, vm, _) {
             if (vm.qiblaDirection == null) {
-              return const Center(
-                child: CircularProgressIndicator(),
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF0F766E),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Memuat arah kiblat...',
+                      style: TextStyle(color: Color(0xFF102A26), fontSize: 16),
+                    ),
+                  ],
+                ),
               );
             }
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-
                   // =====================
                   // INFO CARD
                   // =====================
                   Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    elevation: 0,
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          const Icon(Icons.explore,
-                              color: Colors.green, size: 32),
-                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F766E).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.explore,
+                              color: Color(0xFF0F766E),
+                              size: 32,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                           Text(
                             vm.status,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
+                              color: Color(0xFF102A26),
                             ),
                           ),
                         ],
@@ -56,7 +86,7 @@ class QiblaPage extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 32),
 
                   // =====================
                   // KOMPAS
@@ -67,20 +97,21 @@ class QiblaPage extends StatelessWidget {
                       children: [
                         // Lingkaran dasar
                         Container(
-                          width: 260,
-                          height: 260,
+                          width: 280,
+                          height: 280,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
                               colors: [
-                                Colors.green.shade100,
-                                Colors.green.shade50,
+                                const Color(0xFF0F766E).withOpacity(0.1),
+                                const Color(0xFF14B8A6).withOpacity(0.05),
                               ],
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
@@ -88,24 +119,40 @@ class QiblaPage extends StatelessWidget {
 
                         // Jarum kiblat
                         Transform.rotate(
-                          angle: ((vm.qiblaDirection! -
+                          angle:
+                              ((vm.qiblaDirection! -
                                       (vm.deviceDirection ?? 0)) *
                                   pi /
                                   180) *
                               -1,
                           child: Column(
-                            children: const [
-                              Icon(
-                                Icons.navigation,
-                                size: 110,
-                                color: Colors.redAccent,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.navigation,
+                                  size: 64,
+                                  color: Colors.white,
+                                ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 8),
                               Text(
                                 "Kiblat",
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFFEF4444),
+                                  fontSize: 18,
                                 ),
                               ),
                             ],
@@ -114,43 +161,51 @@ class QiblaPage extends StatelessWidget {
 
                         // Ka'bah icon
                         const Positioned(
-                          bottom: 35,
+                          bottom: 40,
                           child: Icon(
                             Icons.mosque,
-                            size: 42,
-                            color: Colors.green,
+                            size: 48,
+                            color: Color(0xFF0F766E),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   // =====================
                   // ANGLE INFO
                   // =====================
                   Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    elevation: 0,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
+                        horizontal: 24,
+                        vertical: 20,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.rotate_right,
-                              color: Colors.green),
-                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F766E).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.rotate_right,
+                              color: Color(0xFF0F766E),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
                           Text(
                             "${vm.qiblaDirection!.toStringAsFixed(2)}° dari Utara",
                             style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF102A26),
                             ),
                           ),
                         ],

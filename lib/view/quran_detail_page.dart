@@ -16,11 +16,8 @@ class _QuranDetailPageState extends State<QuranDetailPage> {
   void initState() {
     super.initState();
 
-    // Ambil detail surat saat halaman dibuka
     Future.microtask(() {
-      context
-          .read<QuranDetailViewModel>()
-          .fetchDetailSurat(widget.nomor);
+      context.read<QuranDetailViewModel>().fetchDetailSurat(widget.nomor);
     });
   }
 
@@ -29,9 +26,12 @@ class _QuranDetailPageState extends State<QuranDetailPage> {
     final vm = context.watch<QuranDetailViewModel>();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAF9),
       appBar: AppBar(
-        title: const Text('Detail Surat'),
-        backgroundColor: Colors.green,
+        title: Text('Surat ${vm.surat?.namaLatin ?? "Detail"}'),
+        backgroundColor: const Color(0xFF0F766E),
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: _buildBody(vm),
     );
@@ -39,85 +39,152 @@ class _QuranDetailPageState extends State<QuranDetailPage> {
 
   Widget _buildBody(QuranDetailViewModel vm) {
     if (vm.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Memuat detail surat...',
+              style: TextStyle(color: Color(0xFF102A26), fontSize: 16),
+            ),
+          ],
+        ),
+      );
     }
 
     if (vm.error != null) {
-      return Center(child: Text(vm.error!));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade400, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                vm.error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF102A26).withOpacity(0.8),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (vm.surat == null) {
-      return const Center(child: Text('Data tidak tersedia'));
+      return Center(
+        child: Text(
+          'Data tidak tersedia',
+          style: TextStyle(color: Color(0xFF102A26).withOpacity(0.7)),
+        ),
+      );
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.all(20),
       itemCount: vm.surat!.ayat.length,
-      padding: const EdgeInsets.all(16),
       itemBuilder: (context, index) {
         final ayat = vm.surat!.ayat[index];
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 20),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-
-              // ===== BARIS ATAS (NOMOR AYAT) =====
-              Row(
+          margin: const EdgeInsets.only(bottom: 24),
+          child: Card(
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Colors.green,
-                    child: Text(
-                      ayat.nomorAyat.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  // ===== BARIS ATAS (NOMOR AYAT) =====
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F766E),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          ayat.nomorAyat.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 16),
+                      Text(
+                        'Ayat ${ayat.nomorAyat}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF102A26),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ===== TEKS ARAB =====
+                  Text(
+                    ayat.arab,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      height: 1.8,
+                      fontFamily: 'Arabic',
+                      color: Color(0xFF102A26),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ===== LATIN =====
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F766E).withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      ayat.latin,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.6,
+                        fontStyle: FontStyle.italic,
+                        color: Color(0xFF102A26),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ===== TERJEMAHAN =====
+                  Text(
+                    ayat.arti,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.6,
+                      color: Color(0xFF102A26),
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 12),
-
-              // ===== TEKS ARAB =====
-              Text(
-                ayat.arab,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 26,
-                  height: 1.8,
-                  fontFamily: 'Arabic',
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // ===== LATIN =====
-              Text(
-                ayat.latin,
-                style: const TextStyle(
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // ===== TERJEMAHAN =====
-              Text(
-                ayat.arti,
-                style: const TextStyle(
-                  color: Colors.black87,
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
